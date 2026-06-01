@@ -199,13 +199,11 @@ class AssinafyService
      */
     public function downloadFinalAssinado(string $documentId): string
     {
-        // Tenta bundle primeiro, depois certificated
         foreach (['bundle', 'certificated'] as $tipo) {
             $response = Http::withHeaders([
                 'Authorization' => 'Bearer ' . $this->apiKey,
-                'Accept'        => 'application/pdf',
+                // Sem Accept específico — deixa a API retornar o tipo dela
             ])->baseUrl($this->baseUrl)
-                ->withOptions(['stream' => true])
                 ->get("/documents/{$documentId}/download/{$tipo}");
 
             if ($response->successful()) {
