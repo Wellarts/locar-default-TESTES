@@ -79,7 +79,11 @@ class Contrato extends Controller
         $tel_2 = $locacao->Cliente->telefone_2;
 
         return Pdf::loadView('pdf.locacao.contrato', compact([
-            'locacao', 'dataAtual', 'cpfCnpj', 'tel_1', 'tel_2',
+            'locacao',
+            'dataAtual',
+            'cpfCnpj',
+            'tel_1',
+            'tel_2',
         ]))->stream();
     }
 
@@ -307,7 +311,7 @@ class Contrato extends Controller
 
         try {
             $locacao = Locacao::with(['Cliente', 'Veiculo', 'Veiculo.Marca', 'Cliente.Cidade', 'Cliente.Estado'])
-                              ->findOrFail($locacaoId);
+                ->findOrFail($locacaoId);
 
             $pdfContent = $this->gerarPdfContent($locacaoId, $contratoId);
 
@@ -320,10 +324,10 @@ class Contrato extends Controller
             ];
 
             $resultado = $assinafy->enviarDocumento(
-                pdfContent:  $pdfContent,
-                filename:    "contrato_locacao_{$locacaoId}.pdf",
+                pdfContent: $pdfContent,
+                filename: "contrato_locacao_{$locacaoId}.pdf",
                 signatarios: $signatarios,
-                titulo:      "Contrato de Locação #{$locacaoId}"
+                titulo: "Contrato de Locação #{$locacaoId}"
             );
 
             $locacao->update([
@@ -336,7 +340,6 @@ class Contrato extends Controller
                 'document_id' => $resultado['id'] ?? null,
                 'message'     => 'Contrato enviado para assinatura com sucesso!',
             ]);
-
         } catch (\Exception $e) {
             Log::error('Erro ao enviar para Assinafy', [
                 'error' => $e->getMessage(),
@@ -344,5 +347,23 @@ class Contrato extends Controller
             ]);
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
+    }
+
+    public function downloadAssinado(int $locacao)
+    {
+        $locacaoModel = Locacao::findOrFail($locacao);
+
+        if (empty($locacaoModel->assinafy_document_id)) {
+            abort(404, 'Documento não encontrado.');
+        }
+
+        $assinafy    = app(AssinafyService::class);
+        $fileContent = $assinafy->downloadFinalAssinado($locacaoModel->assinafy_document_id);
+
+        return response($fileContent, 200, [
+            'Content-Type'        => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="contrato_assinado_' . $locacao . '.pdf"',
+            'Content-Length'      => strlen($fileContent),
+        ]);
     }
 }

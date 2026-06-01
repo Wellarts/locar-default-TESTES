@@ -753,7 +753,7 @@ class LocacaoResource extends Resource
                     ->colors([
                         'gray'    => 'pending',
                         'warning' => 'sent',
-                        'success' => fn ($state) => in_array($state, ['signed', 'certificated']),
+                        'success' => fn($state) => in_array($state, ['signed', 'certificated']),
                         'danger'  => 'refused',
                     ])
                     ->formatStateUsing(fn($state) => match ($state) {
@@ -879,19 +879,20 @@ class LocacaoResource extends Resource
                     ->label('Enviar p/ Assinatura')
                     ->icon('heroicon-o-paper-airplane')
                     ->color('success')
-                    ->visible(fn (?Locacao $record) => $record !== null
-                        && $record->Cliente?->email !== null
-                        && !in_array($record->assinafy_status, ['sent', 'signed', 'certificated'])
+                    ->visible(
+                        fn(?Locacao $record) => $record !== null
+                            && $record->Cliente?->email !== null
+                            && !in_array($record->assinafy_status, ['sent', 'signed', 'certificated'])
                     )
                     ->form([
                         Forms\Components\Select::make('contrato_id')
                             ->label('Modelo de Documento')
-                            ->options(fn () => \App\Models\Contrato::orderBy('titulo')->pluck('titulo', 'id'))
+                            ->options(fn() => \App\Models\Contrato::orderBy('titulo')->pluck('titulo', 'id'))
                             ->required(),
                         Forms\Components\TextInput::make('email_cliente')
                             ->label('E-mail do Cliente')
                             ->email()
-                            ->default(fn (?Locacao $record) => $record?->Cliente?->email)
+                            ->default(fn(?Locacao $record) => $record?->Cliente?->email)
                             ->required(),
                         Forms\Components\Repeater::make('signatarios_extras')
                             ->label('Signatários Adicionais (opcional)')
@@ -922,10 +923,10 @@ class LocacaoResource extends Resource
                                 ->gerarPdfContent($record->id, $data['contrato_id']);
 
                             $resultado = $assinafy->enviarDocumento(
-                                pdfContent:  $pdfContent,
-                                filename:    "contrato_locacao_{$record->id}.pdf",
+                                pdfContent: $pdfContent,
+                                filename: "contrato_locacao_{$record->id}.pdf",
                                 signatarios: $signatarios,
-                                titulo:      "Contrato de Locação #{$record->id}"
+                                titulo: "Contrato de Locação #{$record->id}"
                             );
 
                             $record->update([
@@ -938,7 +939,6 @@ class LocacaoResource extends Resource
                                 ->body('O cliente receberá o link por e-mail.')
                                 ->success()
                                 ->send();
-
                         } catch (\Exception $e) {
                             Log::error('Erro ao enviar para Assinafy', [
                                 'error' => $e->getMessage(),
@@ -962,37 +962,14 @@ class LocacaoResource extends Resource
                     ->label('Baixar Doc. Assinado')
                     ->icon('heroicon-o-arrow-down-tray')
                     ->color('info')
-                    ->visible(fn (?Locacao $record) => $record !== null
-                        && in_array($record->assinafy_status, ['signed', 'certificated'])
-                        && !empty($record->assinafy_document_id)
+                    ->visible(
+                        fn(?Locacao $record) => $record !== null
+                            && in_array($record->assinafy_status, ['signed', 'certificated'])
+                            && !empty($record->assinafy_document_id)
                     )
-                    ->action(function (Locacao $record) {
-                        try {
-                            $assinafy    = app(\App\Services\AssinafyService::class);
-                            $fileContent = $assinafy->downloadFinalAssinado($record->assinafy_document_id);
-
-                            if (empty($fileContent)) {
-                                throw new \Exception('O conteúdo do documento assinado retornou vazio.');
-                            }
-
-                            $filename = "contrato_assinado_final_{$record->id}_" . time() . ".pdf";
-                            Storage::disk('public')->put("temp/{$filename}", $fileContent);
-                            $filePath = storage_path("app/public/temp/{$filename}");
-
-                            return response()->download($filePath, "contrato_assinado_{$record->id}.pdf")
-                                            ->deleteFileAfterSend(true);
-
-                        } catch (\Exception $e) {
-                            Log::error('Erro ao baixar documento assinado do Assinafy', [
-                                'error' => $e->getMessage(),
-                            ]);
-
-                            Notification::make()
-                                ->title('Erro ao baixar documento')
-                                ->body($e->getMessage())
-                                ->danger()
-                                ->send();
-                        }
+                    ->action(function (Locacao $record, $livewire) {
+                        $url = route('downloadAssinadoLocacao', ['locacao' => $record->id]);
+                        $livewire->js("window.open('{$url}', '_blank')");
                     }),
 
                 // Gerar contrato PDF (visualização)

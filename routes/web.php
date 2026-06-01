@@ -46,3 +46,7 @@ Route::post('/webhooks/assinafy', [App\Http\Controllers\AssinafyWebhookControlle
      ->withoutMiddleware([\App\Http\Middleware\VerifyCsrfToken::class]);
 
 Route::get('/teste-assinafy', [App\Http\Controllers\Contrato::class, 'testarAssinafy'])->name('testeAssinafy');
+
+Route::get('/locacao/{locacao}/download-assinado', [App\Http\Controllers\Contrato::class, 'downloadAssinado'])
+    ->name('downloadAssinadoLocacao')
+    ->middleware('auth');
