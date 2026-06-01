@@ -176,4 +176,24 @@ class AssinafyService
         ])->baseUrl($this->baseUrl)->get("/documents/{$documentId}/download/original");
         return $response->body();
     }
+
+    /**
+     * Baixa o PDF com as assinaturas e certificado acoplados.
+     */
+    public function downloadFinalAssinado(string $documentId): string
+    {
+        // Alterado de /download/original para /download/signed
+        // (Caso a API deles use outro padrão, pode ser apenas /download ou /download/completed)
+        $response = Http::withHeaders([
+            'Authorization' => 'Bearer ' . $this->apiKey,
+        ])->baseUrl($this->baseUrl)->get("/documents/{$documentId}/download/signed");
+
+        // Se o endpoint acima der erro 404, tente a rota padrão abaixo (comentada):
+        // $response = Http::withHeaders(['Authorization' => 'Bearer ' . $this->apiKey])
+        //     ->baseUrl($this->baseUrl)->get("/documents/{$documentId}/download");
+
+        return $response->body();
+    }
+
+    
 }
