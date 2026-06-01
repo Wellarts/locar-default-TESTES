@@ -895,11 +895,13 @@ class LocacaoResource extends Resource
                     ->modalHeading('Confirmar exportação?'),
             ])
             ->actions([
+                // AÇÃO 1: Enviar para Assinatura (Visível apenas se NÃO estiver assinado)
                 Tables\Actions\Action::make('EnviarAssinatura')
                     ->label('Enviar p/ Assinatura')
                     ->icon('heroicon-o-paper-airplane')
                     ->color('success')
-                    //  ->visible(fn (?Locacao $record) => $record !== null && $record->Cliente?->email !== null)
+                    // Esconde o botão se o status for 'signed' (Assinado)
+                    ->hidden(fn (Locacao $record) => $record->assinafy_status === 'signed')
                     ->form([
                         Forms\Components\Select::make('contrato_id')
                             ->label('Modelo de Documento')
@@ -977,6 +979,38 @@ class LocacaoResource extends Resource
                     ->modalHeading('Enviar Contrato para Assinatura Eletrônica')
                     ->modalDescription('O cliente receberá um e-mail com o link para assinar digitalmente.')
                     ->modalSubmitActionLabel('Enviar'),
+
+                // AÇÃO 2: Baixar Documento Assinado (Visível APENAS se estiver assinado)
+                Tables\Actions\Action::make('BaixarDocumentoAssinado')
+                    ->label('Baixar Doc. Assinado')
+                    ->icon('heroicon-o-arrow-down-tray')
+                    ->color('info')
+                    // Exibe o botão APENAS se o status for 'signed' (Assinado)
+                    ->visible(fn (Locacao $record) => $record->assinafy_status === 'signed')
+                    ->action(function (Locacao $record) {
+                        try {
+                            // Certifique-se de que o método abaixo exista ou ajuste para a assinatura correspondente do AssinafyService
+                            $assinafy = app(\App\Services\AssinafyService::class);
+                            
+                            // Ajuste o método 'downloadDocumento' conforme a sua implementação real do Assinafy
+                            $fileContent = $assinafy->downloadDocumento($record->assinafy_document_id); 
+
+                            return response()->streamDownload(function () use ($fileContent) {
+                                echo $fileContent;
+                            }, "contrato_assinado_{$record->id}.pdf");
+
+                        } catch (\Exception $e) {
+                            Log::error('Erro ao baixar documento do Assinafy', [
+                                'error' => $e->getMessage(),
+                            ]);
+
+                            Notification::make()
+                                ->title('Erro ao baixar documento')
+                                ->body($e->getMessage())
+                                ->danger()
+                                ->send();
+                        }
+                    }),
                 Tables\Actions\Action::make('GerarContrato')
                     ->label('Gerar Documento')
                     ->icon('heroicon-o-document-text')
