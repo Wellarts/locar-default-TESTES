@@ -352,28 +352,30 @@ class Contrato extends Controller
     public function downloadAssinado(int $locacao)
     {
         $locacaoModel = Locacao::findOrFail($locacao);
+        $documentId   = $locacaoModel->assinafy_document_id;
+        $key          = config('services.assinafy.key');
+        $base         = config('services.assinafy.base_url');
 
-        if (empty($locacaoModel->assinafy_document_id)) {
-            abort(404, 'Documento não encontrado.');
+        $resultados = [];
+
+        foreach (['bundle', 'certificated', 'original', 'certificate-page'] as $tipo) {
+            $r = \Illuminate\Support\Facades\Http::withHeaders([
+                'Authorization' => 'Bearer ' . $key,
+                'Accept'        => 'application/pdf',
+            ])->get("{$base}/documents/{$documentId}/download/{$tipo}");
+
+            $resultados[$tipo] = [
+                'status'         => $r->status(),
+                'content_type'   => $r->header('Content-Type'),
+                'content_length' => $r->header('Content-Length'),
+                'primeiros_bytes' => bin2hex(substr($r->body(), 0, 20)),
+                'body_preview'   => substr($r->body(), 0, 200),
+            ];
         }
 
-        $assinafy    = app(AssinafyService::class);
-        $fileContent = $assinafy->downloadFinalAssinado($locacaoModel->assinafy_document_id);
-
-        // Verifica se o conteúdo começa com %PDF (assinatura de PDF válido)
-        if (!str_starts_with($fileContent, '%PDF')) {
-            Log::error('Assinafy: conteúdo baixado não é um PDF válido', [
-                'document_id' => $locacaoModel->assinafy_document_id,
-                'primeiros_bytes' => bin2hex(substr($fileContent, 0, 20)),
-                'preview' => substr($fileContent, 0, 200),
-            ]);
-            abort(500, 'O arquivo retornado não é um PDF válido.');
-        }
-
-        return response($fileContent)
-            ->header('Content-Type', 'application/pdf')
-            ->header('Content-Disposition', 'attachment; filename="contrato_assinado_' . $locacao . '.pdf"')
-            ->header('Content-Length', strlen($fileContent))
-            ->header('Cache-Control', 'no-cache, no-store');
+        return response()->json([
+            'document_id' => $documentId,
+            'resultados'  => $resultados,
+        ]);
     }
 }
