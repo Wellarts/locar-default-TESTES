@@ -109,8 +109,8 @@ class AssinafyService
             'Authorization' => 'Bearer ' . $this->apiKey,
             'Accept'        => 'application/json',
         ])->baseUrl($this->baseUrl)
-          ->attach('file', $pdfContent, $filename, ['Content-Type' => 'application/pdf'])
-          ->post("/accounts/{$this->accountId}/documents");
+            ->attach('file', $pdfContent, $filename, ['Content-Type' => 'application/pdf'])
+            ->post("/accounts/{$this->accountId}/documents");
 
         Log::info('Assinafy upload', [
             'status' => $uploadResponse->status(),
@@ -199,24 +199,21 @@ class AssinafyService
      */
     public function downloadFinalAssinado(string $documentId): string
     {
-        // bundle = PDF + assinaturas + página de certificado
-        $response = Http::withHeaders([
-            'Authorization' => 'Bearer ' . $this->apiKey,
-        ])->baseUrl($this->baseUrl)->get("/documents/{$documentId}/download/bundle");
-
-        if ($response->failed()) {
-            Log::warning('Assinafy bundle não disponível, tentando certificated', ['document_id' => $documentId]);
-
-            // Fallback: só o PDF com assinaturas embutidas
+        // Tenta bundle primeiro, depois certificated
+        foreach (['bundle', 'certificated'] as $tipo) {
             $response = Http::withHeaders([
                 'Authorization' => 'Bearer ' . $this->apiKey,
-            ])->baseUrl($this->baseUrl)->get("/documents/{$documentId}/download/certificated");
+                'Accept'        => 'application/pdf',
+            ])->baseUrl($this->baseUrl)
+                ->withOptions(['stream' => true])
+                ->get("/documents/{$documentId}/download/{$tipo}");
+
+            if ($response->successful()) {
+                Log::info("Assinafy download {$tipo} OK", ['document_id' => $documentId]);
+                return $response->body();
+            }
         }
 
-        if ($response->failed()) {
-            throw new \RuntimeException('Falha ao baixar PDF assinado: ' . $response->body());
-        }
-
-        return $response->body();
+        throw new \RuntimeException('Falha ao baixar PDF assinado. Documento: ' . $documentId);
     }
 }

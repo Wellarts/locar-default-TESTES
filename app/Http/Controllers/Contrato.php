@@ -360,10 +360,20 @@ class Contrato extends Controller
         $assinafy    = app(AssinafyService::class);
         $fileContent = $assinafy->downloadFinalAssinado($locacaoModel->assinafy_document_id);
 
-        return response($fileContent, 200, [
-            'Content-Type'        => 'application/pdf',
-            'Content-Disposition' => 'attachment; filename="contrato_assinado_' . $locacao . '.pdf"',
-            'Content-Length'      => strlen($fileContent),
-        ]);
+        // Verifica se o conteúdo começa com %PDF (assinatura de PDF válido)
+        if (!str_starts_with($fileContent, '%PDF')) {
+            Log::error('Assinafy: conteúdo baixado não é um PDF válido', [
+                'document_id' => $locacaoModel->assinafy_document_id,
+                'primeiros_bytes' => bin2hex(substr($fileContent, 0, 20)),
+                'preview' => substr($fileContent, 0, 200),
+            ]);
+            abort(500, 'O arquivo retornado não é um PDF válido.');
+        }
+
+        return response($fileContent)
+            ->header('Content-Type', 'application/pdf')
+            ->header('Content-Disposition', 'attachment; filename="contrato_assinado_' . $locacao . '.pdf"')
+            ->header('Content-Length', strlen($fileContent))
+            ->header('Cache-Control', 'no-cache, no-store');
     }
 }
