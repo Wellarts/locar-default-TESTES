@@ -981,6 +981,7 @@ class LocacaoResource extends Resource
                     ->modalSubmitActionLabel('Enviar'),
 
                 // AÇÃO 2: Baixar Documento Assinado (Visível APENAS se estiver assinado)
+               // AÇÃO 2: Baixar Documento Assinado (Visível APENAS se estiver assinado)
                 Tables\Actions\Action::make('BaixarDocumentoAssinado')
                     ->label('Baixar Doc. Assinado')
                     ->icon('heroicon-o-arrow-down-tray')
@@ -989,12 +990,13 @@ class LocacaoResource extends Resource
                     ->visible(fn (Locacao $record) => $record->assinafy_status === 'signed')
                     ->action(function (Locacao $record) {
                         try {
-                            // Certifique-se de que o método abaixo exista ou ajuste para a assinatura correspondente do AssinafyService
+                            // Instancia o service correto
                             $assinafy = app(\App\Services\AssinafyService::class);
                             
-                            // Ajuste o método 'downloadDocumento' conforme a sua implementação real do Assinafy
-                            $fileContent = $assinafy->downloadDocumento($record->assinafy_document_id); 
+                            // Chama o método exatamente como está mapeado no seu Service
+                            $fileContent = $assinafy->downloadAssinado($record->assinafy_document_id); 
 
+                            // Retorna o download em formato de stream para o navegador
                             return response()->streamDownload(function () use ($fileContent) {
                                 echo $fileContent;
                             }, "contrato_assinado_{$record->id}.pdf");
