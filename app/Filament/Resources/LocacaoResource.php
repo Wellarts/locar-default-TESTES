@@ -239,7 +239,6 @@ class LocacaoResource extends Resource
                                                     ->inlineLabel(false)
                                                     ->live()
                                                     ->afterStateUpdated(function (Get $get, Set $set, $state) {
-                                                        // Reset quando mudar a forma de locação
                                                         if ($state == 1) {
                                                             $set('qtd_semanas', null);
                                                         } else {
@@ -264,7 +263,7 @@ class LocacaoResource extends Resource
                                                             return;
                                                         }
 
-                                                        $dataSaida = Carbon::parse($get('data_saida'));
+                                                        $dataSaida   = Carbon::parse($get('data_saida'));
                                                         $dataRetorno = $dataSaida->copy()->addDays($state);
 
                                                         $veiculo = Veiculo::select('valor_diaria')->find($get('veiculo_id'));
@@ -291,9 +290,9 @@ class LocacaoResource extends Resource
                                                             return;
                                                         }
 
-                                                        $dataSaida = Carbon::parse($get('data_saida'));
+                                                        $dataSaida   = Carbon::parse($get('data_saida'));
                                                         $dataRetorno = $dataSaida->copy()->addWeeks($state);
-                                                        $qtdDias = $dataSaida->diffInDays($dataRetorno);
+                                                        $qtdDias     = $dataSaida->diffInDays($dataRetorno);
 
                                                         $veiculo = Veiculo::select('valor_semana')->find($get('veiculo_id'));
                                                         if (!$veiculo) return;
@@ -383,7 +382,7 @@ class LocacaoResource extends Resource
                                             ->live(onBlur: true)
                                             ->afterStateUpdated(function ($state, callable $set, Get $get) {
                                                 $valorTotal = (float) ($get('valor_total') ?? 0);
-                                                $desconto = (float) $state;
+                                                $desconto   = (float) $state;
                                                 $set('valor_total_desconto', $valorTotal - $desconto);
                                             }),
                                         Forms\Components\TextInput::make('valor_total_desconto')
@@ -449,7 +448,7 @@ class LocacaoResource extends Resource
                                                     ->hidden(fn(Get $get): bool => !$get('status_financeiro'))
                                                     ->disabled(fn(string $context): bool => $context === 'edit')
                                                     ->options([
-                                                        '7' => 'Semanal',
+                                                        '7'  => 'Semanal',
                                                         '15' => 'Quinzenal',
                                                         '30' => 'Mensal',
                                                     ])
@@ -462,7 +461,7 @@ class LocacaoResource extends Resource
                                                     ->afterStateUpdated(
                                                         function (Get $get, Set $set) {
                                                             $valorTotal = (float) ($get('valor_total_financeiro') ?? 0);
-                                                            $parcelas = (int) ($get('parcelas_financeiro') ?? 1);
+                                                            $parcelas   = (int) ($get('parcelas_financeiro') ?? 1);
                                                             if ($parcelas > 0) {
                                                                 $set('valor_parcela_financeiro', $valorTotal / $parcelas);
                                                                 $set('data_vencimento_financeiro', Carbon::now()->addDays($get('proxima_parcela'))->format('Y-m-d'));
@@ -564,11 +563,11 @@ class LocacaoResource extends Resource
                                                     ->schema([
                                                         Select::make('tipo')
                                                             ->options([
-                                                                'multa' => 'Multa',
-                                                                'colisao' => 'Colisão',
-                                                                'avaria' => 'Avaria',
+                                                                'multa'           => 'Multa',
+                                                                'colisao'         => 'Colisão',
+                                                                'avaria'          => 'Avaria',
                                                                 'danos_terceiros' => 'Danos a Terceiros',
-                                                                'outro' => 'Outros',
+                                                                'outro'           => 'Outros',
                                                             ]),
                                                         DateTimePicker::make('data_hora'),
                                                         TextInput::make('valor')
@@ -600,9 +599,9 @@ class LocacaoResource extends Resource
      */
     private static function recalcularValores(Get $get, Set $set): void
     {
-        $veiculoId = $get('veiculo_id');
-        $dataSaida = $get('data_saida');
-        $dataRetorno = $get('data_retorno');
+        $veiculoId    = $get('veiculo_id');
+        $dataSaida    = $get('data_saida');
+        $dataRetorno  = $get('data_retorno');
         $formaLocacao = $get('forma_locacao');
 
         if (!$veiculoId || !$dataSaida || !$dataRetorno) {
@@ -612,19 +611,16 @@ class LocacaoResource extends Resource
         $veiculo = Veiculo::select('valor_diaria', 'valor_semana')->find($veiculoId);
         if (!$veiculo) return;
 
-        $dtSaida = Carbon::parse($dataSaida);
+        $dtSaida   = Carbon::parse($dataSaida);
         $dtRetorno = Carbon::parse($dataRetorno);
-        $qtdDias = $dtRetorno->diffInDays($dtSaida);
+        $qtdDias   = $dtRetorno->diffInDays($dtSaida);
 
         if ($formaLocacao == 1) {
-            // Diária
             $set('qtd_diarias', $qtdDias);
             $valorTotal = $veiculo->valor_diaria * $qtdDias;
         } else {
-            // Semanal
             $qtdSemanas = ceil($qtdDias / 7);
             $set('qtd_semanas', $qtdSemanas);
-            // Ajustar data de retorno para semanas completas
             $dataRetornoAjustada = $dtSaida->copy()->addWeeks($qtdSemanas);
             $set('data_retorno', $dataRetornoAjustada->format('Y-m-d'));
             $valorTotal = $veiculo->valor_semana * $qtdSemanas;
@@ -633,20 +629,11 @@ class LocacaoResource extends Resource
         $set('valor_total', $valorTotal);
         $set('valor_total_desconto', $valorTotal - ((float) ($get('valor_desconto') ?? 0)));
 
-        ### CALCULO DOS DIAS E SEMANAS
-        $diferencaEmDias = $dtSaida->diffInDays($dtRetorno);
-        // Calculando a diferença em semanas
+        $diferencaEmDias    = $dtSaida->diffInDays($dtRetorno);
         $diferencaEmSemanas = $diferencaEmDias / 7;
-
-        // Arredondando para baixo para obter o número inteiro de semanas
-        $semanasCompletas = floor($diferencaEmSemanas);
-        // Calculando os dias restantes (módulo 7)
-        $diasRestantes = $diferencaEmDias % 7;
-        //Calculando os meses
-        $mesesCompleto = $diferencaEmDias / 30;
-        //Calculando os meses em número inteiro
-        $mesesCompleto = floor($mesesCompleto);
-        //Calculando semanas restantes
+        $semanasCompletas   = floor($diferencaEmSemanas);
+        $diasRestantes      = $diferencaEmDias % 7;
+        $mesesCompleto      = floor($diferencaEmDias / 30);
         $diasRestantesMeses = $diferencaEmDias % 30;
 
         Notification::make()
@@ -715,9 +702,9 @@ class LocacaoResource extends Resource
                         if (!$state) return 'secondary';
 
                         try {
-                            $hoje = Carbon::today();
+                            $hoje        = Carbon::today();
                             $dataRetorno = Carbon::parse($state);
-                            $qtdDias = $hoje->diffInDays($dataRetorno, false);
+                            $qtdDias     = $hoje->diffInDays($dataRetorno, false);
 
                             if ($qtdDias <= 3 && $qtdDias >= 0) {
                                 return 'warning';
@@ -755,8 +742,8 @@ class LocacaoResource extends Resource
                     ->badge()
                     ->alignCenter()
                     ->color(fn(string $state): string => match ($state) {
-                        '0' => 'danger',
-                        '1' => 'success',
+                        '0'     => 'danger',
+                        '1'     => 'success',
                         default => 'secondary'
                     })
                     ->formatStateUsing(fn($state) => $state == 0 ? 'Locado' : 'Finalizada')
@@ -766,14 +753,15 @@ class LocacaoResource extends Resource
                     ->colors([
                         'gray'    => 'pending',
                         'warning' => 'sent',
-                        'success' => 'signed',
+                        'success' => fn ($state) => in_array($state, ['signed', 'certificated']),
                         'danger'  => 'refused',
                     ])
                     ->formatStateUsing(fn($state) => match ($state) {
-                        'sent'    => 'Aguardando',
-                        'signed'  => 'Assinado',
-                        'refused' => 'Recusado',
-                        default   => '—',
+                        'sent'         => 'Aguardando',
+                        'signed'       => 'Assinado',
+                        'certificated' => 'Certificado',
+                        'refused'      => 'Recusado',
+                        default        => '—',
                     }),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime('d/m/Y H:i')
@@ -862,17 +850,9 @@ class LocacaoResource extends Resource
                                     ->label('Data de Saída'),
                                 \Filament\Forms\Components\DatePicker::make('data_retorno')
                                     ->label('Data de Retorno'),
-
                             ]),
                     ])
                     ->action(function (array $data, $livewire) {
-                        $params = [];
-                        if (!empty($data['cliente_id'])) $params['cliente_id'] = $data['cliente_id'];
-                        if (!empty($data['veiculo_id'])) $params['veiculo_id'] = $data['veiculo_id'];
-                        if (!empty($data['forma_pgmto_id'])) $params['forma_pgmto_id'] = $data['forma_pgmto_id'];
-                        if (!empty($data['data_saida'])) $params['data_saida'] = $data['data_saida'];
-                        if (!empty($data['data_retorno'])) $params['data_retorno'] = $data['data_retorno'];
-                        if (!empty($data['status'])) $params['status'] = $data['status'];
                         $filteredData = [];
                         foreach ($data as $key => $value) {
                             if ($value !== '' && $value !== null) {
@@ -881,8 +861,7 @@ class LocacaoResource extends Resource
                         }
 
                         $query = http_build_query($filteredData);
-                        //  dd($query);
-                        $url = route('imprimirLocacoesRelatorio') . ($query ? ('?' . $query) : '');
+                        $url   = route('imprimirLocacoesRelatorio') . ($query ? ('?' . $query) : '');
                         $livewire->js("window.open('{$url}', '_blank')");
                     }),
                 ExportAction::make()
@@ -895,45 +874,128 @@ class LocacaoResource extends Resource
                     ->modalHeading('Confirmar exportação?'),
             ])
             ->actions([
-                // AÇÃO 1: Enviar para Assinatura (Visível apenas se NÃO estiver assinado)
-                // AÇÃO 2: Baixar Documento Assinado
+                // Enviar para assinatura (visível apenas se ainda não enviado/assinado)
+                Tables\Actions\Action::make('EnviarAssinatura')
+                    ->label('Enviar p/ Assinatura')
+                    ->icon('heroicon-o-paper-airplane')
+                    ->color('success')
+                    ->visible(fn (?Locacao $record) => $record !== null
+                        && $record->Cliente?->email !== null
+                        && !in_array($record->assinafy_status, ['sent', 'signed', 'certificated'])
+                    )
+                    ->form([
+                        Forms\Components\Select::make('contrato_id')
+                            ->label('Modelo de Documento')
+                            ->options(fn () => \App\Models\Contrato::orderBy('titulo')->pluck('titulo', 'id'))
+                            ->required(),
+                        Forms\Components\TextInput::make('email_cliente')
+                            ->label('E-mail do Cliente')
+                            ->email()
+                            ->default(fn (?Locacao $record) => $record?->Cliente?->email)
+                            ->required(),
+                        Forms\Components\Repeater::make('signatarios_extras')
+                            ->label('Signatários Adicionais (opcional)')
+                            ->schema([
+                                Forms\Components\TextInput::make('name')->label('Nome')->required(),
+                                Forms\Components\TextInput::make('email')->label('E-mail')->email()->required(),
+                            ])
+                            ->defaultItems(0)
+                            ->collapsible(),
+                    ])
+                    ->action(function (array $data, Locacao $record) {
+                        try {
+                            $assinafy = app(\App\Services\AssinafyService::class);
+
+                            $signatarios = [
+                                [
+                                    'name'   => $record->Cliente->nome,
+                                    'email'  => $data['email_cliente'],
+                                    'action' => 'sign',
+                                ],
+                            ];
+
+                            foreach ($data['signatarios_extras'] ?? [] as $extra) {
+                                $signatarios[] = $extra;
+                            }
+
+                            $pdfContent = app(\App\Http\Controllers\Contrato::class)
+                                ->gerarPdfContent($record->id, $data['contrato_id']);
+
+                            $resultado = $assinafy->enviarDocumento(
+                                pdfContent:  $pdfContent,
+                                filename:    "contrato_locacao_{$record->id}.pdf",
+                                signatarios: $signatarios,
+                                titulo:      "Contrato de Locação #{$record->id}"
+                            );
+
+                            $record->update([
+                                'assinafy_document_id' => $resultado['id'] ?? null,
+                                'assinafy_status'      => 'sent',
+                            ]);
+
+                            Notification::make()
+                                ->title('Contrato enviado para assinatura!')
+                                ->body('O cliente receberá o link por e-mail.')
+                                ->success()
+                                ->send();
+
+                        } catch (\Exception $e) {
+                            Log::error('Erro ao enviar para Assinafy', [
+                                'error' => $e->getMessage(),
+                                'trace' => $e->getTraceAsString(),
+                            ]);
+
+                            Notification::make()
+                                ->title('Erro ao enviar')
+                                ->body($e->getMessage())
+                                ->danger()
+                                ->send();
+                        }
+                    })
+                    ->requiresConfirmation()
+                    ->modalHeading('Enviar Contrato para Assinatura Eletrônica')
+                    ->modalDescription('O cliente receberá um e-mail com o link para assinar digitalmente.')
+                    ->modalSubmitActionLabel('Enviar'),
+
+                // Baixar documento assinado (visível quando certificado)
                 Tables\Actions\Action::make('BaixarDocumentoAssinado')
                     ->label('Baixar Doc. Assinado')
                     ->icon('heroicon-o-arrow-down-tray')
                     ->color('info')
-                    ->visible(fn (Locacao $record) => $record->assinafy_status === 'signed')
+                    ->visible(fn (?Locacao $record) => $record !== null
+                        && in_array($record->assinafy_status, ['signed', 'certificated'])
+                        && !empty($record->assinafy_document_id)
+                    )
                     ->action(function (Locacao $record) {
                         try {
-                            $assinafy = app(\App\Services\AssinafyService::class);
-                            
-                            // Chama o novo método que busca a versão assinada
+                            $assinafy    = app(\App\Services\AssinafyService::class);
                             $fileContent = $assinafy->downloadFinalAssinado($record->assinafy_document_id);
 
                             if (empty($fileContent)) {
-                                throw new \Exception("O conteúdo do documento assinado retornou vazio.");
+                                throw new \Exception('O conteúdo do documento assinado retornou vazio.');
                             }
 
                             $filename = "contrato_assinado_final_{$record->id}_" . time() . ".pdf";
-                            
-                            // Salva temporariamente no storage
-                            \Illuminate\Support\Facades\Storage::disk('public')->put("temp/{$filename}", $fileContent);
+                            Storage::disk('public')->put("temp/{$filename}", $fileContent);
                             $filePath = storage_path("app/public/temp/{$filename}");
 
-                            // Dispara o download limpo para o usuário
-                            return response()->download($filePath, "contrato_assinado_{$record->id}.pdf")->deleteFileAfterSend(true);
+                            return response()->download($filePath, "contrato_assinado_{$record->id}.pdf")
+                                            ->deleteFileAfterSend(true);
 
                         } catch (\Exception $e) {
-                            \Illuminate\Support\Facades\Log::error('Erro ao baixar documento assinado do Assinafy', [
+                            Log::error('Erro ao baixar documento assinado do Assinafy', [
                                 'error' => $e->getMessage(),
                             ]);
 
-                            \Filament\Notifications\Notification::make()
+                            Notification::make()
                                 ->title('Erro ao baixar documento')
                                 ->body($e->getMessage())
                                 ->danger()
                                 ->send();
                         }
                     }),
+
+                // Gerar contrato PDF (visualização)
                 Tables\Actions\Action::make('GerarContrato')
                     ->label('Gerar Documento')
                     ->icon('heroicon-o-document-text')
@@ -949,6 +1011,7 @@ class LocacaoResource extends Resource
                         $url = route('imprimirLocacaoContrato', ['locacao' => $record->id, 'contrato' => $data['contrato_id']]);
                         $livewire->js("window.open('{$url}', '_blank')");
                     }),
+
                 Tables\Actions\EditAction::make()
                     ->modalHeading('Editar locação')
                     ->after(function ($data) {
@@ -956,12 +1019,12 @@ class LocacaoResource extends Resource
                             DB::table('veiculos')
                                 ->where('id', $data['veiculo_id'])
                                 ->update([
-                                    'km_atual' => $data['km_retorno'],
-                                    'status_locado' => 0
+                                    'km_atual'      => $data['km_retorno'],
+                                    'status_locado' => 0,
                                 ]);
                         }
                     }),
-                    
+
                 Tables\Actions\DeleteAction::make()
                     ->before(function ($record) {
                         if ($record->veiculo_id) {
@@ -981,8 +1044,7 @@ class LocacaoResource extends Resource
                 ]),
             ])
             ->deferLoading()
-            //>poll('60s')
-            ->striped() // Linhas listradas            
+            ->striped()
             ->defaultPaginationPageOption(25)
             ->paginated([10, 25, 50, 100]);
     }

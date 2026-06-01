@@ -19,14 +19,14 @@ class Contrato extends Controller
         $rawTemplate = $contrato->descricao ?? '';
 
         return response()->json([
-            'titulo'          => $contrato->titulo,
-            'descricao_raw'   => $rawTemplate,
+            'titulo'           => $contrato->titulo,
+            'descricao_raw'    => $rawTemplate,
             'descricao_length' => strlen($rawTemplate),
-            'descricao_bin'   => bin2hex(substr($rawTemplate, 0, 100)),
-            'contains_{{ '    => strpos($rawTemplate, '{{') !== false,
-            'contains_&# '    => strpos($rawTemplate, '&#') !== false,
-            'contains_@{{ '   => strpos($rawTemplate, '@{{') !== false,
-            'first_500_chars' => substr($rawTemplate, 0, 500),
+            'descricao_bin'    => bin2hex(substr($rawTemplate, 0, 100)),
+            'contains_{{ '     => strpos($rawTemplate, '{{') !== false,
+            'contains_&# '     => strpos($rawTemplate, '&#') !== false,
+            'contains_@{{ '    => strpos($rawTemplate, '@{{') !== false,
+            'first_500_chars'  => substr($rawTemplate, 0, 500),
         ]);
     }
 
@@ -62,7 +62,7 @@ class Contrato extends Controller
 
     public function printLocacao($id)
     {
-        $locacao  = Locacao::find($id);
+        $locacao   = Locacao::find($id);
         Carbon::setLocale('pt-BR');
         $dataAtual = Carbon::now();
 
@@ -79,11 +79,7 @@ class Contrato extends Controller
         $tel_2 = $locacao->Cliente->telefone_2;
 
         return Pdf::loadView('pdf.locacao.contrato', compact([
-            'locacao',
-            'dataAtual',
-            'cpfCnpj',
-            'tel_1',
-            'tel_2',
+            'locacao', 'dataAtual', 'cpfCnpj', 'tel_1', 'tel_2',
         ]))->stream();
     }
 
@@ -128,8 +124,8 @@ class Contrato extends Controller
         $cliente = $locacao->Cliente;
         $veiculo = $locacao->Veiculo;
 
-        $data_saida_fmt   = $locacao->data_saida    ? Carbon::parse($locacao->data_saida)->format('d/m/Y')    : '';
-        $data_retorno_fmt = $locacao->data_retorno  ? Carbon::parse($locacao->data_retorno)->format('d/m/Y')  : '';
+        $data_saida_fmt   = $locacao->data_saida   ? Carbon::parse($locacao->data_saida)->format('d/m/Y')   : '';
+        $data_retorno_fmt = $locacao->data_retorno ? Carbon::parse($locacao->data_retorno)->format('d/m/Y') : '';
         $data_hoje        = Carbon::now()->format('d/m/Y');
 
         $valor_total          = isset($locacao->valor_total)          ? number_format($locacao->valor_total, 2, ',', '.')          : '';
@@ -146,31 +142,31 @@ class Contrato extends Controller
             'logo_html' => $logo_html,
             'logo_raw'  => $logo_raw,
 
-            'locacao'     => $locacao,
-            'cliente'     => $cliente,
-            'veiculo'     => $veiculo,
-            'dataAtual'   => $dataAtual,
-            'cpfCnpj'     => $cpfCnpj,
-            'telefone_1'  => $tel_1,
-            'telefone_2'  => $tel_2,
+            'locacao'    => $locacao,
+            'cliente'    => $cliente,
+            'veiculo'    => $veiculo,
+            'dataAtual'  => $dataAtual,
+            'cpfCnpj'    => $cpfCnpj,
+            'telefone_1' => $tel_1,
+            'telefone_2' => $tel_2,
 
             // Cliente
-            'cliente_nome'           => $cliente->nome            ?? '',
-            'cliente_cpf_cnpj'       => $cliente->cpf_cnpj        ?? '',
-            'cliente_rg'             => $cliente->rg              ?? '',
-            'cliente_endereco'       => $cliente->endereco        ?? '',
-            'cliente_cidade'         => $cliente->Cidade->nome    ?? '',
-            'cliente_estado'         => $cliente->Estado->nome    ?? '',
-            'cliente_email'          => $cliente->email           ?? '',
-            'cliente_cnh'            => $cliente->cnh             ?? '',
-            'cliente_telefone_1'     => $cliente->telefone_1      ?? '',
-            'cliente_telefone_2'     => $cliente->telefone_2      ?? '',
-            'cliente_validade_cnh'   => $cliente->validade_cnh
+            'cliente_nome'            => $cliente->nome         ?? '',
+            'cliente_cpf_cnpj'        => $cliente->cpf_cnpj     ?? '',
+            'cliente_rg'              => $cliente->rg           ?? '',
+            'cliente_endereco'        => $cliente->endereco     ?? '',
+            'cliente_cidade'          => $cliente->Cidade->nome ?? '',
+            'cliente_estado'          => $cliente->Estado->nome ?? '',
+            'cliente_email'           => $cliente->email        ?? '',
+            'cliente_cnh'             => $cliente->cnh          ?? '',
+            'cliente_telefone_1'      => $cliente->telefone_1   ?? '',
+            'cliente_telefone_2'      => $cliente->telefone_2   ?? '',
+            'cliente_validade_cnh'    => $cliente->validade_cnh
                 ? Carbon::parse($cliente->validade_cnh)->format('d/m/Y') : '',
-            'cliente_orgao_emissor'  => $cliente->exp_rg          ?? '',
-            'cliente_uf_rg'          => $cliente->Estado->nome    ?? '',
+            'cliente_orgao_emissor'   => $cliente->exp_rg       ?? '',
+            'cliente_uf_rg'           => $cliente->Estado->nome ?? '',
             'cliente_data_nascimento' => $cliente_data_nascimento,
-            'cliente_rede_social'    => $cliente->rede_social     ?? '',
+            'cliente_rede_social'     => $cliente->rede_social  ?? '',
 
             // Veículo
             'veiculo_marca'    => $veiculo->Marca->nome ?? '',
@@ -184,31 +180,35 @@ class Contrato extends Controller
 
             // Locação
             'data_saida'           => $data_saida_fmt,
-            'hora_saida'           => $locacao->hora_saida    ?? '',
+            'hora_saida'           => $locacao->hora_saida   ?? '',
             'data_retorno'         => $data_retorno_fmt,
-            'hora_retorno'         => $locacao->hora_retorno  ?? '',
-            'qtd_diarias'          => $locacao->qtd_diarias   ?? '',
-            'qtd_semanas'          => $locacao->qtd_semanas   ?? '',
+            'hora_retorno'         => $locacao->hora_retorno ?? '',
+            'qtd_diarias'          => $locacao->qtd_diarias  ?? '',
+            'qtd_semanas'          => $locacao->qtd_semanas  ?? '',
             'valor_total'          => $valor_total,
             'valor_desconto'       => $valor_desconto,
             'valor_total_desconto' => $valor_total_desconto,
             'valor_caucao'         => $valor_caucao,
             'data_hoje'            => $data_hoje,
-            'observacoes'          => $locacao->obs           ?? '',
+            'observacoes'          => $locacao->obs          ?? '',
 
-            'testemunha_1'     => $locacao->testemunha_1     ?? '',
-            'testemunha_1_rg'  => $locacao->testemunha_1_rg  ?? '',
-            'testemunha_2'     => $locacao->testemunha_2     ?? '',
-            'testemunha_2_rg'  => $locacao->testemunha_2_rg  ?? '',
-            'fiador'           => $locacao->fiador           ?? '',
-            'dados_fiador'     => $locacao->dados_fiador     ?? '',
+            'testemunha_1'    => $locacao->testemunha_1    ?? '',
+            'testemunha_1_rg' => $locacao->testemunha_1_rg ?? '',
+            'testemunha_2'    => $locacao->testemunha_2    ?? '',
+            'testemunha_2_rg' => $locacao->testemunha_2_rg ?? '',
+            'fiador'          => $locacao->fiador          ?? '',
+            'dados_fiador'    => $locacao->dados_fiador    ?? '',
         ];
 
         // Normalizar template
         $rawTemplate = $contrato->descricao ?? '';
         $rawTemplate = str_replace(['@{{', '@{{{'], ['{{', '{{{'], $rawTemplate);
         $rawTemplate = html_entity_decode($rawTemplate, ENT_QUOTES | ENT_HTML5, 'UTF-8');
-        $rawTemplate = str_replace(['&#123;&#123;', '&#125;&#125;', '&#x7B;&#x7B;', '&#x7D;&#x7D;'], ['{{', '}}', '{{', '}}'], $rawTemplate);
+        $rawTemplate = str_replace(
+            ['&#123;&#123;', '&#125;&#125;', '&#x7B;&#x7B;', '&#x7D;&#x7D;'],
+            ['{{',           '}}',           '{{',            '}}'],
+            $rawTemplate
+        );
 
         try {
             $filledHtml = Blade::render($rawTemplate, $data);
@@ -306,8 +306,8 @@ class Contrato extends Controller
         ]);
 
         try {
-            $locacao  = Locacao::with(['Cliente', 'Veiculo', 'Veiculo.Marca', 'Cliente.Cidade', 'Cliente.Estado'])->findOrFail($locacaoId);
-            $contrato = ContratoModel::findOrFail($contratoId);
+            $locacao = Locacao::with(['Cliente', 'Veiculo', 'Veiculo.Marca', 'Cliente.Cidade', 'Cliente.Estado'])
+                              ->findOrFail($locacaoId);
 
             $pdfContent = $this->gerarPdfContent($locacaoId, $contratoId);
 
@@ -320,10 +320,10 @@ class Contrato extends Controller
             ];
 
             $resultado = $assinafy->enviarDocumento(
-                pdfContent: $pdfContent,
-                filename: "contrato_locacao_{$locacaoId}.pdf",
+                pdfContent:  $pdfContent,
+                filename:    "contrato_locacao_{$locacaoId}.pdf",
                 signatarios: $signatarios,
-                titulo: "Contrato de Locação #{$locacaoId}"
+                titulo:      "Contrato de Locação #{$locacaoId}"
             );
 
             $locacao->update([
@@ -336,6 +336,7 @@ class Contrato extends Controller
                 'document_id' => $resultado['id'] ?? null,
                 'message'     => 'Contrato enviado para assinatura com sucesso!',
             ]);
+
         } catch (\Exception $e) {
             Log::error('Erro ao enviar para Assinafy', [
                 'error' => $e->getMessage(),
@@ -344,32 +345,4 @@ class Contrato extends Controller
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
-
-    public function testarAssinafy()
-{
-    $key        = config('services.assinafy.key');
-    $accountId  = config('services.assinafy.account_id');
-    $base       = 'https://api.assinafy.com.br/v1';
-    $documentId = '10309522e16d33b69932c6e7ca74';
-    $signerId   = '103122e89acf9fe0898b13b78b75'; // signer criado agora
-
-    $r = \Illuminate\Support\Facades\Http::withHeaders([
-        'Authorization' => 'Bearer ' . $key,
-        'Accept'        => 'application/json',
-        'Content-Type'  => 'application/json',
-    ])->post("{$base}/documents/{$documentId}/assignments", [
-        'signers' => [
-            [
-                'id'                   => $signerId,
-                'verification_method'  => 'Email',
-                'notification_methods' => ['Email'],
-                'step'                 => 1,
-            ],
-        ],
-        'method'     => 'virtual',
-        'expiration' => now()->addDays(30)->format('Y-m-d'),
-    ]);
-
-    return response()->json(['status' => $r->status(), 'body' => $r->json()]);
-}
 }
