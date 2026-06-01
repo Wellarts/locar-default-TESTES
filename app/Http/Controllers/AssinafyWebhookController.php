@@ -6,7 +6,7 @@ use App\Models\Locacao;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
-class AsssinafyWebhookController extends Controller
+class AssinafyWebhookController extends Controller
 {
     public function handle(Request $request)
     {
