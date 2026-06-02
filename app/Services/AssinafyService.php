@@ -198,50 +198,36 @@ class AssinafyService
      * Fallback para 'certificated' caso bundle não esteja disponível.
      */
     public function downloadFinalAssinado(string $documentId): string
-    {
-        // 1. Busca os dados do documento para obter as URLs de download
-        $response = Http::withHeaders([
-            'Authorization' => 'Bearer ' . $this->apiKey,
-            'Accept'        => 'application/json',
-        ])->baseUrl($this->baseUrl)->get("/documents/{$documentId}/download/original");
+{
+    $docResponse = Http::withHeaders([
+        'Authorization' => 'Bearer ' . $this->apiKey,
+        'Accept'        => 'application/json',
+    ])->baseUrl($this->baseUrl)->get("/documents/{$documentId}");
 
-        Log::info('Assinafy download/original response', [
-            'status' => $response->status(),
-            'body'   => $response->json(),
-        ]);
-
-        if ($response->failed()) {
-            throw new \RuntimeException('Falha ao obter URLs de download: ' . $response->body());
-        }
-
-        $data = $response->json('data');
-
-        // 2. Tenta download_final_url (PDF assinado) primeiro, depois download_url (original)
-        $downloadUrl = $data['download_final_url'] ?? $data['download_url'] ?? null;
-
-        // Se não tiver download_final_url, tenta pelos artifacts
-        if (!$downloadUrl) {
-            $artifacts   = $data['artifacts'] ?? [];
-            $downloadUrl = $artifacts['bundle']      ??
-                $artifacts['certificated'] ??
-                $artifacts['original']     ?? null;
-        }
-
-        if (!$downloadUrl) {
-            throw new \RuntimeException('Nenhuma URL de download disponível para o documento: ' . $documentId);
-        }
-
-        Log::info('Assinafy baixando PDF de: ' . $downloadUrl);
-
-        // 3. Baixa o arquivo binário diretamente da URL
-        $pdf = Http::withHeaders([
-            'Authorization' => 'Bearer ' . $this->apiKey,
-        ])->get($downloadUrl);
-
-        if ($pdf->failed()) {
-            throw new \RuntimeException('Falha ao baixar o arquivo PDF: ' . $pdf->body());
-        }
-
-        return $pdf->body();
+    if ($docResponse->failed()) {
+        throw new \RuntimeException('Documento não encontrado: ' . $documentId);
     }
+
+    $artifacts = $docResponse->json('data.artifacts') ?? [];
+
+    $url = $artifacts['bundle']       ??
+           $artifacts['certificated'] ??
+           $artifacts['original']     ?? null;
+
+    if (!$url) {
+        throw new \RuntimeException('Nenhum artifact disponível para o documento: ' . $documentId);
+    }
+
+    Log::info('Assinafy baixando PDF de: ' . $url);
+
+    $pdf = Http::withHeaders([
+        'Authorization' => 'Bearer ' . $this->apiKey,
+    ])->get($url);
+
+    if ($pdf->failed()) {
+        throw new \RuntimeException('Falha ao baixar o arquivo: ' . $pdf->body());
+    }
+
+    return $pdf->body();
+}
 }

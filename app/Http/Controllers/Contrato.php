@@ -351,31 +351,71 @@ class Contrato extends Controller
 
     public function downloadAssinado(int $locacao)
     {
-        $locacaoModel = Locacao::findOrFail($locacao);
-        $documentId   = $locacaoModel->assinafy_document_id;
-        $key          = config('services.assinafy.key');
-        $base         = config('services.assinafy.base_url');
+        \Illuminate\Support\Facades\Log::info('downloadAssinado iniciado', ['locacao' => $locacao]);
 
-        $resultados = [];
+        try {
+            $locacaoModel = Locacao::findOrFail($locacao);
+            $documentId   = $locacaoModel->assinafy_document_id;
+            $key          = config('services.assinafy.key');
+            $base         = config('services.assinafy.base_url');
 
-        foreach (['bundle', 'certificated', 'original', 'certificate-page'] as $tipo) {
-            $r = \Illuminate\Support\Facades\Http::withHeaders([
+            \Illuminate\Support\Facades\Log::info('Buscando documento', ['document_id' => $documentId]);
+
+            $docResponse = \Illuminate\Support\Facades\Http::withHeaders([
                 'Authorization' => 'Bearer ' . $key,
-                'Accept'        => 'application/pdf',
-            ])->get("{$base}/documents/{$documentId}/download/{$tipo}");
+                'Accept'        => 'application/json',
+            ])->timeout(30)->get("{$base}/documents/{$documentId}");
 
-            $resultados[$tipo] = [
-                'status'         => $r->status(),
-                'content_type'   => $r->header('Content-Type'),
-                'content_length' => $r->header('Content-Length'),
-                'primeiros_bytes' => bin2hex(substr($r->body(), 0, 20)),
-                'body_preview'   => substr($r->body(), 0, 200),
-            ];
+            \Illuminate\Support\Facades\Log::info('Documento buscado', [
+                'status'    => $docResponse->status(),
+                'artifacts' => $docResponse->json('data.artifacts'),
+            ]);
+
+            if ($docResponse->failed()) {
+                abort(404, 'Documento não encontrado na Assinafy.');
+            }
+
+            $artifacts = $docResponse->json('data.artifacts') ?? [];
+
+            $url = $artifacts['certificated'] ??
+                $artifacts['bundle']       ??
+                $artifacts['original']     ?? null;
+
+            if (!$url) {
+                abort(404, 'Nenhum arquivo disponível para download.');
+            }
+
+            \Illuminate\Support\Facades\Log::info('Baixando PDF de: ' . $url);
+
+            $pdf = \Illuminate\Support\Facades\Http::withHeaders([
+                'Authorization' => 'Bearer ' . $key,
+            ])->timeout(60)->get($url);
+
+            \Illuminate\Support\Facades\Log::info('PDF baixado', [
+                'status'       => $pdf->status(),
+                'content_type' => $pdf->header('Content-Type'),
+                'tamanho'      => strlen($pdf->body()),
+                'primeiros'    => bin2hex(substr($pdf->body(), 0, 4)),
+            ]);
+
+            if ($pdf->failed()) {
+                abort(500, 'Falha ao baixar o arquivo PDF.');
+            }
+
+            $content     = $pdf->body();
+            $contentType = $pdf->header('Content-Type') ?: 'application/pdf';
+            $extension   = str_contains($contentType, 'zip') ? 'zip' : 'pdf';
+
+            return response($content)
+                ->header('Content-Type', $contentType)
+                ->header('Content-Disposition', "attachment; filename=\"contrato_assinado_{$locacao}.{$extension}\"")
+                ->header('Content-Length', strlen($content));
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Erro no downloadAssinado', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            abort(500, $e->getMessage());
         }
-
-        return response()->json([
-            'document_id' => $documentId,
-            'resultados'  => $resultados,
-        ]);
     }
 }
